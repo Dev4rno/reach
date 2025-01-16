@@ -1,5 +1,5 @@
-fastapi[standard]
-uvicorn[standard]
+fastapi
+hypercorn
 jinja2
 motor
 pydantic
