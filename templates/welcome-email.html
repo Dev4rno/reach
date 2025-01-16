@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+    {% include './head.html' %}
+    <body>
+        <div class="container">
+            {% include './banner.html' %}
+            <div class="content">
+                <p>Hey {{ name }},</p>
+                <p>
+                    Thanks for joining this indie dev journey! I build tools in public, share the lessons learned, and
+                    love helping others grow along the way.
+                </p>
+
+                <p>As part of this community, you'll get:</p>
+                <ul>
+                    <li style="margin-bottom: 8px">
+                        <strong>Behind-the-scenes updates</strong> on what I'm building (including the mistakes I make
+                        along the way 😅).
+                    </li>
+                    <li style="margin-bottom: 8px">
+                        <strong>Early access</strong> to try new features (before anyone else).
+                    </li>
+                    <li><strong>First chance</strong> to vote on upcoming features (coming soon).</li>
+                </ul>
+                <p></p>
+                <p>
+                    Got ideas or just want to chat? Feel free to reply to this email, reach out on social media, or use
+                    the contact form on
+                    <a
+                        href="https://devarno.com/?tab=contact"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style="text-decoration: none"
+                        >Devarno.com</a
+                    >. I read every message and love connecting with fellow builders.
+                </p>
+                <p>Thanks again for joining. Having you here means <strong>a lot</strong>.</p>
+                <p style="display: flex; align-items: center">Best regards,<br />Alex</p>
+            </div>
+            {% include './footer.html' %}
+        </div>
+    </body>
+</html>

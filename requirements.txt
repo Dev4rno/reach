@@ -1,0 +1,10 @@
+fastapi[standard]
+uvicorn[standard]
+jinja2
+motor
+pydantic
+python-dotenv
+email-validator
+slowapi
+mailjet_rest
+PyJWT

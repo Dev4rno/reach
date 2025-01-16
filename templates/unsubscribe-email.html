@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+    {% include './head.html' %}
+    <body>
+        <div class="container">
+            {% include './banner.html' %}
+            <div class="content">
+                <p>Hey {{ name }},</p>
+                <p>This email confirms that you will no longer receive any emails from Devarno.</p>
+                <img
+                    src="{{ base_url }}/static/bye.gif"
+                    alt="Cool GIF"
+                    width="200"
+                    style="border: 8px solid #faf0e6; border-radius: 1rem"
+                />
+                <div style="margin: 20px 0">
+                    <h3 style="margin-top: 0">Changed your mind?</h3>
+                    <p>
+                        You can update your email preferences
+                        <a
+                            style="text-decoration: none"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            href="https://devarno.com/preferences?token={{unsubscribe_token}}"
+                            >right here</a
+                        >
+                        or simply
+                        <a
+                            href="https://devarno.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style="text-decoration: none"
+                            >resubscribe</a
+                        >.
+                    </p>
+                </div>
+                <p>
+                    If you have any questions, simply reply to this email or
+                    <a
+                        href="https://devarno.com/?tab=contact"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style="text-decoration: none"
+                        >reach out here</a
+                    >.
+                </p>
+                <p>Thanks again for following along.</p>
+
+                <p>All the best,<br />Alex</p>
+            </div>
+            {% include './footer.html' %}
+        </div>
+    </body>
+</html>

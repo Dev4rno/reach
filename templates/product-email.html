@@ -1,0 +1,37 @@
+<template id="journey-update">
+    <div class="container">
+        <div class="header">
+            <img src="[YOUR_LOGO_URL]" alt="Logo" class="logo" />
+            <h1>Your Journey Update</h1>
+        </div>
+
+        <div class="content">
+            <p>Hi {{name}},</p>
+
+            <p>We've got some exciting updates to share with you about your journey:</p>
+
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 4px; margin: 20px 0">
+                <h2 style="color: #007bff; margin-top: 0">{{update_title}}</h2>
+                <p>{{update_content}}</p>
+            </div>
+
+            <a href="{{details_url}}" class="button">Learn More</a>
+
+            <p>Keep up the great work!</p>
+
+            <div class="divider"></div>
+
+            <p>Best regards,<br />The Team</p>
+        </div>
+
+        <div class="footer">
+            <div class="social-links">
+                <a href="{{twitter_url}}" class="social-link">Twitter</a>
+                <a href="{{discord_url}}" class="social-link">Discord</a>
+                <a href="{{website_url}}" class="social-link">Website</a>
+            </div>
+            <p>You're receiving this email because you signed up for our service.</p>
+            <p><a href="{{unsubscribe_url}}">Unsubscribe</a> | <a href="{{preferences_url}}">Email Preferences</a></p>
+        </div>
+    </div>
+</template>
