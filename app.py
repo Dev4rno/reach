@@ -56,6 +56,7 @@ from core.utils.str import get_random_rate_limit_warning
 from core.handlers.env_handler import env
 from slowapi.middleware import SlowAPIMiddleware
 
+
 BASE_URL = env.state["base_url"]
 
 
@@ -71,27 +72,16 @@ async def lifespan(app: FastAPI):
     yield
     await mongo_client.close()
 
-
-async def rate_limit_exception_handler(request: Request, _: RateLimitExceeded):
-    """Custom handler for RateLimitExceeded"""
-    return templates.TemplateResponse(
-        name="exception.html",
-        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-        context={"request": request, "detail": get_random_rate_limit_warning()},
-    )
-
-limiter = Limiter(key_func=get_remote_address)
-
 # Initialize FastAPI app
 app = FastAPI(title="Credentials Storage API", lifespan=lifespan)
 
-# Rate limiter state
-# https://slowapi.readthedocs.io/en/latest/#fastapi
+# Rate limiting configuration
+limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
-app.add_exception_handler(RateLimitExceeded, rate_limit_exception_handler)#, _rate_limit_exceeded_handler)
-app.add_middleware(SlowAPIMiddleware)# Static files
-
+# Static files
 # https://fastapi.tiangolo.com/tutorial/static-files/
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -110,6 +100,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 NODE_ENV = os.getenv("NODE_ENV", "development")
 ALGORITHM = "HS256"
+
 
 
 # MongoDB configuration
@@ -216,6 +207,11 @@ async def unsubscribe(
     user_uid = await email_service.verify_reach_token(token, uid)
     if not user_uid:
         raise HTTPException(status_code=400, detail="Invalid reach token")
+    user_data = await user_service.get_user(identifier=uid)
+    if not user_data.preferences.marketing and not user_data.preferences.content and not user_data.preferences.product:
+        return JSONResponse(content={
+            "message": "You're already unsubscribed! Bye for now.",
+        })    
     user = await user_service.unsubscribe_user(user_uid)
     if not user:
         raise HTTPException(status_code=500, detail="Could not unsubscribe, try again later")
@@ -239,6 +235,7 @@ async def test_welcome_email(request: Request):
     )
 
 @app.get("/template/product", response_class=HTMLResponse)
+@limiter.limit("3/minute")
 async def test_product_email(request: Request):
     """Test endpoint to preview the product email template"""
     return templates.TemplateResponse(
@@ -252,6 +249,7 @@ async def test_product_email(request: Request):
     )
 
 @app.get("/template/unsubscribe", response_class=HTMLResponse)
+@limiter.limit("3/minute")
 async def test_unsubscribe_email(request: Request):
     """Test endpoint to preview the product email template"""
     return templates.TemplateResponse(
