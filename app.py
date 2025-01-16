@@ -104,11 +104,21 @@ MONGO_URI = os.getenv("MONGO_URI")
 DATABASE_NAME = os.getenv("DATABASE_NAME")
 COLLECTION_NAME = "users"
 
+@app.get("/")
+@limiter.limit("3/minute")
+async def root_endpoint():
+    return JSONResponse(content={
+        "ping": "pong",
+        "message": "Devarno Reach Server pinged successfully :)"
+    })
+
 async def handle_user_service() -> UserService:
     """Handle UserService initialisation within app context"""
     user_repository = UserRepository(app.db["users"])
     user_service = new_user_service(user_repository)
     return user_service
+
+
 
 @app.post("/register", response_model=User)
 @limiter.limit("5/minute")
