@@ -52,8 +52,9 @@ from mailjet_rest import Client
 from core.base.models import User, EmailPreferences
 from fastapi.templating import Jinja2Templates
 from core.repositories.user_repository import UserRepository
-
+from core.utils.str import get_random_rate_limit_warning
 from core.handlers.env_handler import env
+from slowapi.middleware import SlowAPIMiddleware
 
 BASE_URL = env.state["base_url"]
 
@@ -69,12 +70,28 @@ async def lifespan(app: FastAPI):
     app.db = db
     yield
     await mongo_client.close()
-    
-    
+
+
+async def rate_limit_exception_handler(request: Request, _: RateLimitExceeded):
+    """Custom handler for RateLimitExceeded"""
+    return templates.TemplateResponse(
+        name="exception.html",
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        context={"request": request, "detail": get_random_rate_limit_warning()},
+    )
+
+limiter = Limiter(key_func=get_remote_address)
+
 # Initialize FastAPI app
 app = FastAPI(title="Credentials Storage API", lifespan=lifespan)
 
-# Static files
+# Rate limiter state
+# https://slowapi.readthedocs.io/en/latest/#fastapi
+app.state.limiter = limiter
+
+app.add_exception_handler(RateLimitExceeded, rate_limit_exception_handler)#, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)# Static files
+
 # https://fastapi.tiangolo.com/tutorial/static-files/
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -94,10 +111,6 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 NODE_ENV = os.getenv("NODE_ENV", "development")
 ALGORITHM = "HS256"
 
-# Rate limiting configuration
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # MongoDB configuration
 MONGO_URI = os.getenv("MONGO_URI")
