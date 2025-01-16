@@ -106,7 +106,7 @@ COLLECTION_NAME = "users"
 
 @app.get("/")
 @limiter.limit("3/minute")
-async def root_endpoint():
+async def root_endpoint(request: Request):
     return JSONResponse(content={
         "ping": "pong",
         "message": "Devarno Reach Server pinged successfully :)"
