@@ -47,7 +47,7 @@ from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
 from core.services.email_service import EmailService, new_email_service
 from core.services.user_service import new_user_service, UserService
-from core.lib.mongo_client import MongoClient
+from core.clients.mongo_client import MongoClient
 from mailjet_rest import Client
 from core.base.models import User, EmailPreferences
 from fastapi.templating import Jinja2Templates
