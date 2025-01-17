@@ -105,15 +105,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # https://fastapi.tiangolo.com/advanced/templates/
 templates = Jinja2Templates(directory="templates")
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    return templates.TemplateResponse(
-        name="exception.html",
-        context={"request": request, "detail": exc},
-        status_code=status.HTTP_400_BAD_REQUEST,
-    )
+# @app.exception_handler(HTTPException)
+# async def http_exception_handler(request: Request, exc: HTTPException):
+#     return templates.TemplateResponse(
+#         name="exception.html",
+#         context={"request": request, "detail": exc},
+#         status_code=status.HTTP_400_BAD_REQUEST,
+#     )
     
-@app.get("/", response_model=JSONResponse)
+@app.get("/")
 @limiter.limit("3/minute")
 async def root_endpoint(request: Request):
     return JSONResponse(content={
@@ -159,6 +159,17 @@ async def register_user(
                 name=new_user.name,
                 preferences_token=preferences_token,
             )
+            verification_token = await token_service.generate_reach_token(
+                uid=new_user.uid,
+                email=new_user.email, # add updated email
+                permission=TokenPermission.VerifyEmail,
+            )
+            await email_service.send_verify_email(
+                name=new_user.name,
+                email=new_user.email,
+                verification_token=verification_token,
+            )
+
         return JSONResponse(content={
             "message": f"Thanks for subscribing! We're excited to have you!",
         })
@@ -169,7 +180,7 @@ async def register_user(
         )
 
 
-@app.put("/preferences/{uid}")
+@app.put("/preferences")
 @limiter.limit("5/minute")
 async def update_email_preferences(
     request: Request,
@@ -209,7 +220,7 @@ async def update_email_preferences(
     if not current_user_data.email == updated_user.email:
         is_new_email = True
         await user_service.reset_email_verification(updated_user.uid)
-        verification_token = token_service.generate_reach_token(
+        verification_token = await token_service.generate_reach_token(
             uid=updated_user.uid,
             email=updated_user.email, # add updated email
             permission=TokenPermission.VerifyEmail,
@@ -314,21 +325,7 @@ async def test_welcome_email(request: Request):
             "name": "Freddy",
             "base_url": BASE_URL,
             "banner_text": "Welcome to the journey",
-            "unsubscribe_token": "#",
-        }
-    )
-
-@app.get("/template/product", response_class=HTMLResponse)
-@limiter.limit("3/minute")
-async def test_product_email(request: Request):
-    """Test endpoint to preview the product email template"""
-    return templates.TemplateResponse(
-        "product-email.html",
-        {
-            "request": request,
-            "base_url": BASE_URL,
-            "name": "Felipe",
-            "unsubscribe_token": "#dummy_token",
+            "preferences_url": "https://devarno.com/preferences?token=foo_token",
         }
     )
 
@@ -343,7 +340,7 @@ async def test_unsubscribe_email(request: Request):
             "banner_text": "See you again soon",
             "base_url": BASE_URL,
             "name": "Penelope",
-            "preferences_url": "#dummy_token",
+            "preferences_url": "https://devarno.com/preferences?token=foo_token",
         }
     )
     
@@ -358,6 +355,24 @@ async def test_verify_email_template(request: Request):
             "banner_text": "Verify Your Email Address",
             "base_url": BASE_URL,
             "name": "Rosstipher",
-            "verification_token": f"#dummy_token",
+            "verification_url": "https://devarno.com/verify?token=foo_token",
         }
+    )
+
+@app.get("/template/product", response_class=HTMLResponse)
+@limiter.limit("3/minute")
+async def test_product_update(request: Request):
+    """Render a product update email with mock data"""
+    return templates.TemplateResponse(
+        "product-email.html", 
+        {
+            "request": request,
+            "name": "Alex",
+            "banner_text": "Product Update",
+            "base_url": BASE_URL,
+            "feature_one": "Improved User Dashboard",
+            "feature_two": "Seamless Integration with Third-Party Tools",
+            "changelog_url": "https://devarno.com/changelog",
+            "feedback_url": "https://devarno.com/feedback",
+        },
     )

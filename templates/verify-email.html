@@ -6,17 +6,14 @@
             {% include './banner.html' %}
             <div class="content">
                 <p>Hi {{ name }},</p>
-                <p>
-                    Thank you for signing up with Devarno! To complete your registration, please verify your email
-                    address by clicking the button below:
-                </p>
-                <div style="text-align: center; margin: 30px 0">
+                <p>Please verify your email address by clicking the button below:</p>
+                <div style="margin: 30px 0">
                     <a
                         href="{{ verification_url }}"
                         target="_blank"
                         rel="noopener noreferrer"
                         style="
-                            background-color: #4caf50;
+                            background-color: #81464d;
                             color: white;
                             padding: 10px 20px;
                             text-decoration: none;
@@ -28,30 +25,37 @@
                     >
                 </div>
                 <p>If the button above doesn’t work, please copy and paste the following URL into your browser:</p>
-                <p style="word-break: break-all; background: #f9f9f9; padding: 10px; border-radius: 5px">
+                <p
+                    style="
+                        word-break: break-all;
+                        background: #f9f9f9;
+                        padding: 10px;
+                        border-radius: 5px;
+                        border: 1px solid #ac8a8e;
+                    "
+                >
                     <a
                         href="{{ verification_url }}"
                         target="_blank"
                         rel="noopener noreferrer"
-                        style="text-decoration: none; color: #0073e6"
+                        style="text-decoration: none; color: #81464d"
                         >{{ verification_url }}</a
                     >
                 </p>
                 <p>
-                    If you didn’t sign up for a Devarno account, please ignore this email, and no further action will be
+                    If you didn’t sign up for Devarno updates, please ignore this email, and no further action will be
                     taken.
                 </p>
                 <p>
-                    For any questions, feel free to reply to this email or
+                    For any questions, feel free to reply to this email or reach out
                     <a
                         href="https://devarno.com/?tab=contact"
                         target="_blank"
                         rel="noopener noreferrer"
                         style="text-decoration: none"
-                        >contact us here</a
+                        >here</a
                     >.
                 </p>
-                <p>Thanks, and welcome aboard!</p>
                 <p>Cheers,<br />Alex</p>
             </div>
             {% include './footer.html' %}

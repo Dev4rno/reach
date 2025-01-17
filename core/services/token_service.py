@@ -53,7 +53,7 @@ class TokenService:
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
             # if payload.get("sub") == uid and 
-            if payload.get("perm") == permission:
+            if payload.get("perm") == permission.value:
                 return {"uid": payload["sub"], "email": payload["email"] if "email" in payload else None}
             return None
         except jwt.ExpiredSignatureError:
