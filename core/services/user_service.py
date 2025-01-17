@@ -86,6 +86,14 @@ class UserService:
         if not user_deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
         return True
-
+    
+    async def confirm_email_verified(self, uid: str):
+        """Confirm user email address is verified successfully"""
+        return await self.repository._update_user(uid, {"emailVerified": True})
+    
+    async def reset_email_verification(self, uid: str):
+        """Flag user (new) email address as unverified"""
+        return await self.repository._update_user(uid, {"emailVerified": False})
+        
 def new_user_service(repository: UserRepository) -> UserService:
     return UserService(repository)

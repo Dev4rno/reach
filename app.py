@@ -47,6 +47,7 @@ from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
 from core.services.email_service import EmailService, new_email_service
 from core.services.user_service import new_user_service, UserService
+from core.services.token_service import new_token_service, TokenService, TokenPermission
 from core.clients.mongo_client import MongoClient
 from mailjet_rest import Client
 from core.base.models import User, EmailPreferences
@@ -55,13 +56,29 @@ from core.repositories.user_repository import UserRepository
 from core.utils.str import get_random_rate_limit_warning
 from core.handlers.env_handler import env
 from slowapi.middleware import SlowAPIMiddleware
+from functools import lru_cache
+
+
+@lru_cache
+def get_token_service() -> TokenService:
+    return new_token_service(SECRET_KEY, ALGORITHM)
+
+@lru_cache
+def get_email_service() -> EmailService:
+    return new_email_service()
+
+def get_user_service() -> UserService:
+    user_repository = UserRepository(app.db["users"])
+    return new_user_service(user_repository)
+
 
 
 BASE_URL = env.state["base_url"]
-
+SECRET_KEY = env.jwt["secret"]
+ALGORITHM = env.jwt["algorithm"]
 
 # Load environment variables
-load_dotenv()
+# load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -96,19 +113,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         status_code=status.HTTP_400_BAD_REQUEST,
     )
     
-# Add these to your existing FastAPI app
-SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-NODE_ENV = os.getenv("NODE_ENV", "development")
-ALGORITHM = "HS256"
-
-
-
-# MongoDB configuration
-MONGO_URI = os.getenv("MONGO_URI")
-DATABASE_NAME = os.getenv("DATABASE_NAME")
-COLLECTION_NAME = "users"
-
-@app.get("/")
+@app.get("/", response_model=JSONResponse)
 @limiter.limit("3/minute")
 async def root_endpoint(request: Request):
     return JSONResponse(content={
@@ -116,21 +121,14 @@ async def root_endpoint(request: Request):
         "message": "Devarno Reach Server pinged successfully :)"
     })
 
-async def handle_user_service() -> UserService:
-    """Handle UserService initialisation within app context"""
-    user_repository = UserRepository(app.db["users"])
-    user_service = new_user_service(user_repository)
-    return user_service
-
-
-
 @app.post("/register", response_model=User)
 @limiter.limit("5/minute")
 async def register_user(
     request: Request,
     user: User,
-    user_service: UserService = Depends(handle_user_service),
-    email_service: EmailService = Depends(new_email_service),
+    user_service: UserService = Depends(get_user_service),
+    email_service: EmailService = Depends(get_email_service),
+    token_service: TokenService = Depends(get_token_service),
 ):
     """
     Register user in MongoDB and send welcome email if new user.
@@ -150,19 +148,20 @@ async def register_user(
                     "message": "Welcome back! You've been successfully resubscribed.",
                 })
             
-        new_user = await user_service.create_user(
-            email=user.email,
-            name=user.name,
-            source=user.source,
-        )
-        
+        new_user = await user_service.create_user(user.email, user.name, user.source)        
         if new_user.email:
-            await email_service.send_welcome_email(new_user.email, new_user.uid, new_user.name)
-            
+            preferences_token = await token_service.generate_reach_token(
+                uid=new_user.uid,
+                permission=TokenPermission.ChangePreferences,
+            )
+            await email_service.send_welcome_email(
+                email=new_user.email, 
+                name=new_user.name,
+                preferences_token=preferences_token,
+            )
         return JSONResponse(content={
             "message": f"Thanks for subscribing! We're excited to have you!",
         })
-    
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -175,50 +174,134 @@ async def register_user(
 async def update_email_preferences(
     request: Request,
     token: str,
-    uid: str,
     user: User,
-    user_service: UserService = Depends(handle_user_service),
-    email_service: EmailService = Depends(new_email_service),
-
+    token_service: TokenService = Depends(get_token_service),
+    user_service: UserService = Depends(get_user_service),
+    email_service: EmailService = Depends(get_email_service),
 ):
     """Update email preferences"""
-    user_uid = await email_service.verify_reach_token(token, uid)
-    if not user_uid:
-        raise HTTPException(status_code=400, detail="Invalid token")
-    user = await user_service.update_user(uid, user.name, user.email, user.preferences.model_dump())
-    if not user:
-        raise HTTPException(status_code=400, detail="Preferences endpoint failed")
-    return JSONResponse(content={
-        "message": "Preferences updated! You're all set!",
-    })
+    
+    # Verify permissions
+    verified = await token_service.verify_reach_token(
+        # uid=uid,
+        token=token,
+        permission=TokenPermission.ChangePreferences,
+    )
+    if not verified:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")
+    
+    # Get current user data
+    current_user_data = await user_service.get_user(verified["uid"])
+    if not current_user_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    is_new_email = False
+    
+    # Update user data
+    updated_user = await user_service.update_user(verified["uid"], user.name, user.email, user.preferences.model_dump())
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Preferences endpoint failed",
+        )
+    
+    # Check if email has changed
+    if not current_user_data.email == updated_user.email:
+        is_new_email = True
+        await user_service.reset_email_verification(updated_user.uid)
+        verification_token = token_service.generate_reach_token(
+            uid=updated_user.uid,
+            email=updated_user.email, # add updated email
+            permission=TokenPermission.VerifyEmail,
+        )
+        await email_service.send_verify_email(updated_user.email, verification_token, updated_user.name)
 
+    # Check if user is unsubscribed
+    if not updated_user.preferences.content and not updated_user.preferences.marketing and not updated_user.preferences.product:
+        await email_service.send_unsubscribe_confirmation_email(updated_user.email, token, updated_user.name)
+
+    return JSONResponse(content={
+        "message": f'Preferences updated! {"Please check your inbox." if is_new_email else "You're all set!"}',
+    })
 
 @app.put("/unsubscribe/{uid}")
 @limiter.limit("5/minute")
 async def unsubscribe(
     request: Request,
-    uid: str,
     token: str,
+    token_service: TokenService = Depends(get_token_service),
     email_service: EmailService = Depends(new_email_service),
-    user_service: UserService = Depends(handle_user_service),
+    user_service: UserService = Depends(get_user_service),
 
 ):
     """Handle unsubscribe requests"""
-    user_uid = await email_service.verify_reach_token(token, uid)
-    if not user_uid:
+    
+    # Verify permissions
+    verified = await token_service.verify_reach_token(
+        # uid=uid,
+        token=token,
+        permission=TokenPermission.ChangePreferences,
+    )
+    if not verified:
         raise HTTPException(status_code=400, detail="Invalid reach token")
-    user_data = await user_service.get_user(identifier=uid)
+    
+    # Check if already unsubscribed
+    user_data = await user_service.get_user(identifier=verified["uid"])
+    if not user_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
     if not user_data.preferences.marketing and not user_data.preferences.content and not user_data.preferences.product:
         return JSONResponse(content={
-            "message": "You're already unsubscribed! Bye for now.",
-        })    
-    user = await user_service.unsubscribe_user(user_uid)
+            "message": "You're already unsubscribed! Bye for now :(",
+        })
+    
+    # Unsubscribe user
+    user = await user_service.unsubscribe_user(verified["uid"])
     if not user:
-        raise HTTPException(status_code=500, detail="Could not unsubscribe, try again later")
-    await email_service.send_unsubscribe_confirmation_email(user.email, user.uid, user.name)
+        raise HTTPException(status_code=500, detail="User not found")
+    
+    # Email/response
+    await email_service.send_unsubscribe_confirmation_email(user.email, token, user.name)
     return JSONResponse(content={
-        "message": "You've been unsubscribed! Bye for now.",
+        "message": "You've been unsubscribed! Bye for now :(",
     })
+
+@app.get("/verify")
+@limiter.limit("3/minute")
+async def verify_email(
+    request: Request,
+    token: str,
+    user_service: UserService = Depends(get_user_service),
+    token_service: TokenService = Depends(get_token_service),
+):
+    try:
+        verified = await token_service.verify_reach_token(
+            # uid=uid,
+            token=token,
+            permission=TokenPermission.VerifyEmail,
+        )
+        
+        if not verified:
+            raise HTTPException(status_code=400, detail="Invalid reach token")
+        
+        user = await user_service.get_user(identifier=verified["uid"])
+        if not user:
+            raise HTTPException(status_code=500, detail="User not found")
+        
+        # Verify updated email
+        if not "email" in verified or not verified["email"] == user.email or not "uid" in verified or not verified["uid"] == user.uid:
+            raise HTTPException(status_code=401, detail="Invalid permissions")
+        
+        if user.emailVerified:
+            raise HTTPException(status_code=401, detail="Email is already verified")
+        
+        await user_service.confirm_email_verified(user.uid)
+        return JSONResponse(content={
+            "message": "Email verified! You're all set!",
+        })
+        
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 @app.get("/template/welcome", response_class=HTMLResponse)
 @limiter.limit("3/minute")
@@ -230,6 +313,7 @@ async def test_welcome_email(request: Request):
             "request": request,
             "name": "Freddy",
             "base_url": BASE_URL,
+            "banner_text": "Welcome to the journey",
             "unsubscribe_token": "#",
         }
     )
@@ -244,7 +328,7 @@ async def test_product_email(request: Request):
             "request": request,
             "base_url": BASE_URL,
             "name": "Felipe",
-            "unsubscribe_token": "#",
+            "unsubscribe_token": "#dummy_token",
         }
     )
 
@@ -258,8 +342,22 @@ async def test_unsubscribe_email(request: Request):
             "request": request,
             "banner_text": "See you again soon",
             "base_url": BASE_URL,
-            "name": "Felipe",
-            "resubscribe_token": "#",
+            "name": "Penelope",
+            "preferences_url": "#dummy_token",
         }
     )
     
+@app.get("/template/verify-email", response_class=HTMLResponse)
+@limiter.limit("3/minute")
+async def test_verify_email_template(request: Request):
+    """Test endpoint to preview the verify email template"""
+    return templates.TemplateResponse(
+        "verify-email.html",
+        {
+            "request": request,
+            "banner_text": "Verify Your Email Address",
+            "base_url": BASE_URL,
+            "name": "Rosstipher",
+            "verification_token": f"#dummy_token",
+        }
+    )

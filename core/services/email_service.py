@@ -5,7 +5,6 @@ from mailjet_rest import Client
 import asyncio
 from functools import partial
 from core.services.token_service import TokenService
-from jinja2 import Template
 from core.handlers.env_handler import env
 
 BASE_URL = env.state["base_url"]
@@ -15,31 +14,29 @@ MAILJET_SECRET_KEY = env.mailjet["secret_key"]
 
 class EmailService(TokenService):
     def __init__(self):
-        super().__init__()
-        auth = (MAILJET_API_KEY, MAILJET_SECRET_KEY)
-        self.mailjet = Client(auth=auth, version='v3.1')
-        self.templates_dir = Path("templates")
-        self.welcome_template_path = self.templates_dir / "welcome-email.html"
+        self.mailjet = Client(auth=(MAILJET_API_KEY, MAILJET_SECRET_KEY), version='v3.1')
         self.env = Environment(
-            loader=FileSystemLoader(self.templates_dir),
-            autoescape=select_autoescape(['html', 'xml'])
+            loader=FileSystemLoader(Path("templates")),
+            autoescape=select_autoescape(["html"])
         )
 
-    async def send_welcome_email(self, email: str, uid: str, name: Optional[str] = None):
+    async def send_welcome_email(self,
+        email: str,
+        preferences_token: str,
+        name: Optional[str] = None,
+    ):
         """Send welcome email using the template"""
         try:
             # Load template
+            preferences_url = f"https://devarno.com/preferences?token={preferences_token}"
             template = self.env.get_template("welcome-email.html")
-            
-            # Generate unsubscribe token (assuming this function exists)
-            unsubscribe_token = await self.generate_reach_token(uid)
-            
+                        
             # Prepare template variables
             template_vars = {
                 "name": name or email,
                 "base_url": BASE_URL,
                 "banner_text": "Welcome to the journey",
-                "unsubscribe_token": unsubscribe_token,
+                "preferences_url": preferences_url,
             }
             
             # Render template
@@ -48,17 +45,17 @@ class EmailService(TokenService):
             # Prepare email data
             data = {
                 'Messages': [{
-                    "From": {
-                        "Email": SENDER_EMAIL,
-                        "Name": "Devarno"
-                    },
+                    "From": {"Email": SENDER_EMAIL, "Name": "Devarno"},
                     "To": [{"Email": email, "Name": name or email}],
-                    "Subject": "Thanks for signing up",
+                    "Subject": "Welcome to the journey",
                     "HTMLPart": html_content,
                     "TextPart": f"""
                     Hello {name or 'there'},
 
                     Thanks for joining this indie dev journey!
+                    
+                    You can updated your email preferences at:
+                    {preferences_url}
                     
                     If you have any questions, just reply to this email.
                     
@@ -78,25 +75,22 @@ class EmailService(TokenService):
             # You might want to log this error or handle it differently
             raise
         
-    async def send_unsubscribe_confirmation_email(self, email: str, uid: str, name: Optional[str] = None):
+    async def send_unsubscribe_confirmation_email(self,
+        email: str,
+        preferences_token: str,
+        name: Optional[str] = None,
+    ):
         """Send unsubscribe confirmation email"""
         try:
-            # Load unsubscribe template
+            preferences_url = f"https://devarno.com/preferences?token={preferences_token}"
             template = self.env.get_template("unsubscribe-email.html")
-
-            # Generate resubscribe token
-            resubscribe_token = await self.generate_reach_token(uid)
             template_vars = {    
                 "name": name or email,
                 "base_url": BASE_URL,                
                 "banner_text": "See you again soon",
-                "resubscribe_token": resubscribe_token,
+                "preferences_url": preferences_url,
             }
-            
-            # Render template
             html_content = template.render(**template_vars)
-
-            # Prepare email data
             data = {
                 'Messages': [
                     {
@@ -113,7 +107,7 @@ class EmailService(TokenService):
                             This email confirms that you have been unsubscribed from Devarno.com updates and notifications.
                             
                             If you unsubscribed by mistake, you can resubscribe at:
-                            https://devarno.com/resubscribe?token={resubscribe_token}
+                            {preferences_url}
                             
                             Best regards,
                             The Team
@@ -131,5 +125,52 @@ class EmailService(TokenService):
             # Log the error but don't raise - we don't want to break the unsubscribe flow
             # Consider adding proper error logging here
             
+    async def send_verify_email(self, 
+        email: str,
+        verification_token: str,
+        name: Optional[str] = None,
+    ):
+        """Send email verification link using the template"""
+        try:
+            verification_url = f"https://devarno.com/verify?token={verification_token}"
+            template = self.env.get_template("verify-email.html")
+            template_vars = {
+                "name": name or email,
+                "base_url": BASE_URL,
+                "verification_url": verification_url,
+                "banner_text": "Verify Your Email Address",
+            }
+            html_content = template.render(**template_vars)
+            data = {
+                'Messages': [{
+                    "From": {"Email": SENDER_EMAIL, "Name": "Devarno"},
+                    "To": [{"Name": name or email, "Email": email}],
+                    "Subject": "Verify Your Email Address",
+                    "HTMLPart": html_content,
+                    "TextPart": f"""
+                    Hi {name or 'there'},
+
+                    Thank you for signing up with Devarno! Please verify your email address by clicking the link below:
+
+                    {verification_url}
+
+                    If you didn’t sign up, you can safely ignore this email.
+
+                    Cheers,
+                    Alex
+                    """
+                }]
+            }
+            
+            # Send the email asynchronously
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, partial(self.mailjet.send.create, data=data))
+            
+        except Exception as e:
+            print(f"Error sending verification email: {str(e)}")
+            # Log or handle the error as needed
+            raise
+
 def new_email_service() -> EmailService:
+    """EmailService factory"""
     return EmailService()

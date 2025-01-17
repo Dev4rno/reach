@@ -2,22 +2,8 @@
     {% include './social-links.html' %}
     <p>Devarno Community Member 🚀</p>
     <p>
-        {% if unsubscribe_token %}
-        <a
-            target="_blank"
-            rel="noopener noreferrer"
-            href="https://devarno.com/preferences?token={{ unsubscribe_token }}"
-            >Preferences</a
-        >
-        |
-        <a
-            target="_blank"
-            rel="noopener noreferrer"
-            href="https://devarno.com/unsubscribe?token={{ unsubscribe_token }}"
-            >Unsubscribe</a
-        >
-        | {% endif %} {% if resubscribe_token %}
-        <a target="_blank" rel="noopener noreferrer" href="https://devarno.com">Subscribe</a>
+        {% if preferences_url %}
+        <a target="_blank" rel="noopener noreferrer" href="{{ preferences_url }}">Preferences</a>
         | {% endif %}
         <a target="_blank" rel="noopener noreferrer" href="https://devarno.com/privacy">Privacy</a>
         |
