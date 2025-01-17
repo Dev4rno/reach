@@ -1,7 +1,7 @@
 import typing as t
 import os
 from dotenv import load_dotenv
-# from core.utils.str import parse_env_var_to_list
+from core.utils.str import parse_env_var_to_list
 
 dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
 load_dotenv(dotenv_path=dotenv_path)
@@ -12,6 +12,8 @@ class EnvHandler:
         self.state = {
             "base_url": self.get("BASE_URL"),
             "sender": self.get("SENDER_EMAIL"),
+            "client_local": self.get("CLIENT_URL_LOCAL"),
+            "client_prod": self.get("CLIENT_URL_PROD"),
         }
         self.mongo = {
             "uri": self.get("MONGO_URI"),
@@ -24,6 +26,9 @@ class EnvHandler:
         self.jwt = {
             "algorithm": self.get("ALGORITHM"),
             "secret": self.get("JWT_SECRET_KEY"),
+        }
+        self.auth = {
+            "allow_headers": parse_env_var_to_list(self.get("ALLOW_HEADERS"))
         }
 
     def get(self, key: str, default: t.Union[t.Any, None] = None, cast: t.Union[type, None] = None) -> any:
