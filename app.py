@@ -29,18 +29,12 @@
 #  Missing required fields are caught
 #  Clear error messages are returned
 
-
 from fastapi import FastAPI, HTTPException, Depends, Request, status
 from fastapi.responses import HTMLResponse
-
 from fastapi.responses import JSONResponse
-
-from motor.motor_asyncio import AsyncIOMotorClient
-# from typing import Optional
-import os
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -49,15 +43,19 @@ from core.services.email_service import EmailService, new_email_service
 from core.services.user_service import new_user_service, UserService
 from core.services.token_service import new_token_service, TokenService, TokenPermission
 from core.clients.mongo_client import MongoClient
-from mailjet_rest import Client
 from core.base.models import User, EmailPreferences
 from fastapi.templating import Jinja2Templates
 from core.repositories.user_repository import UserRepository
-from core.utils.str import get_random_rate_limit_warning
 from core.handlers.env_handler import env
 from slowapi.middleware import SlowAPIMiddleware
 from functools import lru_cache
 
+BASE_URL = env.state["base_url"]
+SECRET_KEY = env.jwt["secret"]
+ALGORITHM = env.jwt["algorithm"]
+CLIENT_LOCAL = env.state["client_local"]
+CLIENT_PROD = env.state["client_prod"]
+ALLOW_HEADERS = env.auth["allow_headers"]
 
 @lru_cache
 def get_token_service() -> TokenService:
@@ -71,15 +69,6 @@ def get_user_service() -> UserService:
     user_repository = UserRepository(app.db["users"])
     return new_user_service(user_repository)
 
-
-
-BASE_URL = env.state["base_url"]
-SECRET_KEY = env.jwt["secret"]
-ALGORITHM = env.jwt["algorithm"]
-
-# Load environment variables
-# load_dotenv()
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global mongo_client
@@ -89,8 +78,16 @@ async def lifespan(app: FastAPI):
     yield
     await mongo_client.close()
 
-# Initialize FastAPI app
+
 app = FastAPI(title="Credentials Storage API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[CLIENT_LOCAL, CLIENT_PROD],
+    allow_headers=ALLOW_HEADERS,
+    allow_credentials=True,
+    allow_methods=["GET", "PUT", "POST", "OPTIONS"],
+)
 
 # Rate limiting configuration
 limiter = Limiter(key_func=get_remote_address)

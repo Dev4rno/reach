@@ -30,3 +30,9 @@ rate_limit_warnings = [
 
 def get_random_rate_limit_warning(warnings = rate_limit_warnings):
     return random.choice(warnings)
+
+def parse_env_var_to_list(env_var: str, separator: str = "|") -> list[str]:
+    """Parse a pipe-separated string from an environment variable into a list of strings."""
+    if not env_var:
+        return []
+    return [item.strip() for item in env_var.split(separator) if item.strip()]
