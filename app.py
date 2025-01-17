@@ -314,6 +314,27 @@ async def verify_email(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
+
+@app.get("/user")
+@limiter.limit("3/minute")
+async def get_user_controller(
+    request: Request,
+    token: str,
+    user_service: UserService = Depends(get_user_service),
+    token_service: TokenService = Depends(get_token_service),
+):
+    try:
+        verified = await token_service.verify_reach_token(
+            token=token,
+            permission=TokenPermission.ChangePreferences,
+        )
+        if not verified:
+            raise HTTPException(status_code=400, detail="Invalid reach token")
+        return await user_service.get_user(identifier=verified["uid"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch user data: {e}")
+
+
 @app.get("/template/welcome", response_class=HTMLResponse)
 @limiter.limit("3/minute")
 async def test_welcome_email(request: Request):
