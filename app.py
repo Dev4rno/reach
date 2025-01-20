@@ -83,9 +83,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Credentials Storage API", lifespan=lifespan)
 
+origins = [CLIENT_LOCAL]
+
+for prod_url in CLIENT_PROD:
+    origins.append(prod_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[CLIENT_LOCAL, CLIENT_PROD],
+    allow_origins=origins,
     allow_headers=ALLOW_HEADERS,
     allow_credentials=True,
     allow_methods=["GET", "PUT", "POST", "OPTIONS"],

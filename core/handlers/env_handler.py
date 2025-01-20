@@ -14,7 +14,7 @@ class EnvHandler:
             "base_url": self.get("BASE_URL"),
             "sender": self.get("SENDER_EMAIL"),
             "client_local": self.get("CLIENT_URL_LOCAL"),
-            "client_prod": self.get("CLIENT_URL_PROD"),
+            "client_prod": parse_env_var_to_list(self.get("CLIENT_URL_PROD")),
         }
         self.mongo = {
             "uri": self.get("MONGO_URI"),
