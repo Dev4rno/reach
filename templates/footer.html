@@ -6,7 +6,9 @@
         <a target="_blank" rel="noopener noreferrer" href="{{ preferences_url }}">Preferences</a>
         | {% endif %}
         <a target="_blank" rel="noopener noreferrer" href="https://devarno.com/privacy">Privacy</a>
-        |
+        | {% if unsubscribe_url %}
+        <a target="_blank" rel="noopener noreferrer" href="{{ unsubscribe_url }}">Unsubscribe</a>
+        | {% endif %}
         <a
             target="_blank"
             rel="noopener noreferrer"

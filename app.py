@@ -337,7 +337,9 @@ async def test_welcome_email(request: Request):
             "name": "Freddy",
             "base_url": BASE_URL,
             "banner_text": "Welcome to the journey",
-            "preferences_url": f"{TEMPLATE_BASE}/preferences?token=foo_token",
+            "preferences_url": f"{TEMPLATE_BASE}/preferences/foo_token",
+            "unsubscribe_url": f"{TEMPLATE_BASE}/unsubscribe/foo_token"
+
         }
     )
 

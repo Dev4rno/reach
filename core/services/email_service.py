@@ -34,7 +34,8 @@ class EmailService(TokenService):
         """Send welcome email using the template"""
         try:
             # Load template
-            preferences_url = f"{TEMPLATE_BASE}/preferences?token={preferences_token}"
+            preferences_url = f"{TEMPLATE_BASE}/preferences/{preferences_token}"
+            unsubscribe_url = f"{TEMPLATE_BASE}/unsubscribe/{preferences_token}"
             template = self.env.get_template("welcome-email.html")
                         
             # Prepare template variables
@@ -43,6 +44,7 @@ class EmailService(TokenService):
                 "base_url": BASE_URL,
                 "banner_text": "Welcome to the journey",
                 "preferences_url": preferences_url,
+                "unsubscribe_url": unsubscribe_url,
             }
             
             # Render template
@@ -88,7 +90,7 @@ class EmailService(TokenService):
     ):
         """Send unsubscribe confirmation email"""
         try:
-            preferences_url = f"{TEMPLATE_BASE}/preferences?token={preferences_token}"
+            preferences_url = f"{TEMPLATE_BASE}/preferences/{preferences_token}"
             template = self.env.get_template("unsubscribe-email.html")
             template_vars = {    
                 "name": name or email,
@@ -138,7 +140,7 @@ class EmailService(TokenService):
     ):
         """Send email verification link using the template"""
         try:
-            verification_url = f"{TEMPLATE_BASE}/verify?token={verification_token}"
+            verification_url = f"{TEMPLATE_BASE}/verify/{verification_token}"
             template = self.env.get_template("verify-email.html")
             template_vars = {
                 "name": name or email,
