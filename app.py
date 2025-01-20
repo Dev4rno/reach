@@ -83,6 +83,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Credentials Storage API", lifespan=lifespan)
 
+# Rate limiting configuration
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 origins = [TEMPLATE_BASE]
 
 for prod_url in ALLOW_ORIGINS:
@@ -96,11 +102,6 @@ app.add_middleware(
     allow_methods=["GET", "PUT", "POST", "OPTIONS"],
 )
 
-# Rate limiting configuration
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.add_middleware(SlowAPIMiddleware)
 
 # Static files
 # https://fastapi.tiangolo.com/tutorial/static-files/
