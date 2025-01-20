@@ -50,12 +50,14 @@ from core.handlers.env_handler import env
 from slowapi.middleware import SlowAPIMiddleware
 from functools import lru_cache
 
+NODE_ENV = env.state["node_env"]
 BASE_URL = env.state["base_url"]
 SECRET_KEY = env.jwt["secret"]
 ALGORITHM = env.jwt["algorithm"]
 CLIENT_LOCAL = env.state["client_local"]
 CLIENT_PROD = env.state["client_prod"]
 ALLOW_HEADERS = env.auth["allow_headers"]
+TEMPLATE_BASE = CLIENT_PROD if NODE_ENV == "production" else CLIENT_LOCAL
 
 @lru_cache
 def get_token_service() -> TokenService:
@@ -183,7 +185,6 @@ async def update_email_preferences(
     
     # Verify permissions
     verified = await token_service.verify_reach_token(
-        # uid=uid,
         token=token,
         permissions=[TokenPermission.ChangePreferences],
     )
@@ -238,7 +239,6 @@ async def unsubscribe(
     
     # Verify permissions
     verified = await token_service.verify_reach_token(
-        # uid=uid,
         token=token,
         permissions=[TokenPermission.ChangePreferences],
     )
@@ -276,8 +276,7 @@ async def verify_email(
 ):
     try:
         verified = await token_service.verify_reach_token(
-            # uid=uid,
-            token=token,
+                token=token,
             permissions=[TokenPermission.VerifyEmail],
         )
         
@@ -338,7 +337,7 @@ async def test_welcome_email(request: Request):
             "name": "Freddy",
             "base_url": BASE_URL,
             "banner_text": "Welcome to the journey",
-            "preferences_url": "https://devarno.com/preferences?token=foo_token",
+            "preferences_url": f"{TEMPLATE_BASE}/preferences?token=foo_token",
         }
     )
 
@@ -353,7 +352,7 @@ async def test_unsubscribe_email(request: Request):
             "banner_text": "See you again soon",
             "base_url": BASE_URL,
             "name": "Penelope",
-            "preferences_url": "https://devarno.com/preferences?token=foo_token",
+            "preferences_url": f"{TEMPLATE_BASE}/preferences?token=foo_token",
         }
     )
     
@@ -368,7 +367,7 @@ async def test_verify_email_template(request: Request):
             "banner_text": "Verify Your Email Address",
             "base_url": BASE_URL,
             "name": "Rosstipher",
-            "verification_url": "https://devarno.com/verify?token=foo_token",
+            "verification_url": f"{TEMPLATE_BASE}/verify?token=foo_token",
         }
     )
 
@@ -385,7 +384,7 @@ async def test_product_update(request: Request):
             "base_url": BASE_URL,
             "feature_one": "Improved User Dashboard",
             "feature_two": "Seamless Integration with Third-Party Tools",
-            "changelog_url": "https://devarno.com/changelog",
-            "feedback_url": "https://devarno.com/feedback",
+            "changelog_url": f"{TEMPLATE_BASE}/changelog",
+            "feedback_url": f"{TEMPLATE_BASE}/feedback",
         },
     )

@@ -10,6 +10,7 @@ class EnvHandler:
     def __init__(self):
         """Add new variables below"""
         self.state = {
+            "node_env": self.get("NODE_ENV", "development"),
             "base_url": self.get("BASE_URL"),
             "sender": self.get("SENDER_EMAIL"),
             "client_local": self.get("CLIENT_URL_LOCAL"),

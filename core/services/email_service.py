@@ -12,6 +12,12 @@ SENDER_EMAIL = env.state["sender"]
 MAILJET_API_KEY = env.mailjet["api_key"]
 MAILJET_SECRET_KEY = env.mailjet["secret_key"]
 
+NODE_ENV = env.state["node_env"]
+CLIENT_LOCAL = env.state["client_local"]
+CLIENT_PROD = env.state["client_prod"]
+TEMPLATE_BASE = CLIENT_PROD if NODE_ENV == "production" else CLIENT_LOCAL
+
+
 class EmailService(TokenService):
     def __init__(self):
         self.mailjet = Client(auth=(MAILJET_API_KEY, MAILJET_SECRET_KEY), version='v3.1')
@@ -28,7 +34,7 @@ class EmailService(TokenService):
         """Send welcome email using the template"""
         try:
             # Load template
-            preferences_url = f"https://devarno.com/preferences?token={preferences_token}"
+            preferences_url = f"{TEMPLATE_BASE}/preferences?token={preferences_token}"
             template = self.env.get_template("welcome-email.html")
                         
             # Prepare template variables
@@ -82,7 +88,7 @@ class EmailService(TokenService):
     ):
         """Send unsubscribe confirmation email"""
         try:
-            preferences_url = f"https://devarno.com/preferences?token={preferences_token}"
+            preferences_url = f"{TEMPLATE_BASE}/preferences?token={preferences_token}"
             template = self.env.get_template("unsubscribe-email.html")
             template_vars = {    
                 "name": name or email,
@@ -132,7 +138,7 @@ class EmailService(TokenService):
     ):
         """Send email verification link using the template"""
         try:
-            verification_url = f"https://devarno.com/verify?token={verification_token}"
+            verification_url = f"{TEMPLATE_BASE}/verify?token={verification_token}"
             template = self.env.get_template("verify-email.html")
             template_vars = {
                 "name": name or email,
