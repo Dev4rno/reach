@@ -102,14 +102,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # https://fastapi.tiangolo.com/advanced/templates/
 templates = Jinja2Templates(directory="templates")
 
-# @app.exception_handler(HTTPException)
-# async def http_exception_handler(request: Request, exc: HTTPException):
-#     return templates.TemplateResponse(
-#         name="exception.html",
-#         context={"request": request, "detail": exc},
-#         status_code=status.HTTP_400_BAD_REQUEST,
-#     )
-    
 @app.get("/")
 @limiter.limit("3/minute")
 async def root_endpoint(request: Request):
@@ -118,7 +110,7 @@ async def root_endpoint(request: Request):
         "message": "Devarno Reach Server pinged successfully :)"
     })
 
-@app.post("/register", response_model=User)
+@app.post("/register")
 @limiter.limit("5/minute")
 async def register_user(
     request: Request,
@@ -193,7 +185,7 @@ async def update_email_preferences(
     verified = await token_service.verify_reach_token(
         # uid=uid,
         token=token,
-        permission=TokenPermission.ChangePreferences,
+        permissions=[TokenPermission.ChangePreferences],
     )
     if not verified:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")
@@ -232,7 +224,7 @@ async def update_email_preferences(
         "message": f'Preferences updated! {"Please check your inbox." if is_new_email else "You're all set!"}',
     })
 
-@app.put("/unsubscribe/{uid}")
+@app.put("/unsubscribe")
 @limiter.limit("5/minute")
 async def unsubscribe(
     request: Request,
@@ -248,7 +240,7 @@ async def unsubscribe(
     verified = await token_service.verify_reach_token(
         # uid=uid,
         token=token,
-        permission=TokenPermission.ChangePreferences,
+        permissions=[TokenPermission.ChangePreferences],
     )
     if not verified:
         raise HTTPException(status_code=400, detail="Invalid reach token")
@@ -286,7 +278,7 @@ async def verify_email(
         verified = await token_service.verify_reach_token(
             # uid=uid,
             token=token,
-            permission=TokenPermission.VerifyEmail,
+            permissions=[TokenPermission.VerifyEmail],
         )
         
         if not verified:
@@ -323,7 +315,10 @@ async def get_user_controller(
     try:
         verified = await token_service.verify_reach_token(
             token=token,
-            permission=TokenPermission.ChangePreferences,
+            permissions=[
+                TokenPermission.ChangePreferences,
+                TokenPermission.VerifyEmail,
+            ],
         )
         if not verified:
             raise HTTPException(status_code=400, detail="Invalid reach token")

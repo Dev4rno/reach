@@ -1,8 +1,9 @@
 import os
 import jwt 
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from fastapi.exceptions import HTTPException
 
 from core.base.exception import ServiceLevelError
 
@@ -31,7 +32,7 @@ class TokenService:
             "iat": timestamp,
             "exp": expire_time,
             "perm": permission.value,
-            # "jti": os.urandom(16).hex()
+            
         }
         if email is not None:
             payload["email"] = email
@@ -43,24 +44,26 @@ class TokenService:
             )
         except Exception as e:
             raise ServiceLevelError(message={"generate_reach_token": e})
-        
-    async def verify_reach_token(self,
-        token: str,
-        # uid: str,
-        permission: TokenPermission,
-    ) -> bool:
-        "Verify a reach token for specific payload and signiature"
+                
+    async def verify_reach_token(self, 
+        token: str, 
+        permissions: list[TokenPermission],
+    ) -> dict:
+        """Verify token and required permissions."""
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
-            # if payload.get("sub") == uid and 
-            if payload.get("perm") == permission.value:
-                return {"uid": payload["sub"], "email": payload["email"] if "email" in payload else None}
-            return None
+            token_permission = payload.get("perm")
+            if token_permission and token_permission in [perm.value for perm in permissions]:
+                return {
+                    "uid": payload["sub"],
+                    "email": payload.get("email"),
+                }
+            raise ServiceLevelError(message="Insufficient permissions")
         except jwt.ExpiredSignatureError:
             raise ServiceLevelError(message="Token expired")
         except jwt.InvalidTokenError:
-            raise ValueError(message="Invalid token")
+            raise ServiceLevelError(message="Invalid token")
+
     
 def new_token_service(secret_key: str, algorithm: str) -> TokenService:
     return TokenService(secret_key, algorithm)
-
