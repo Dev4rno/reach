@@ -130,6 +130,7 @@ async def root_endpoint(request: Request):
 async def register_user(
     request: Request,
     user: User,
+    source: str,
     user_service: UserService = Depends(get_user_service),
     email_service: EmailService = Depends(get_email_service),
     token_service: TokenService = Depends(get_token_service),
@@ -152,7 +153,7 @@ async def register_user(
                     "message": "Welcome back! You've been successfully resubscribed.",
                 })
             
-        new_user = await user_service.create_user(user.email, user.name, user.source)        
+        new_user = await user_service.create_user(user.email, user.name, source)
         if new_user.email:
             preferences_token = await token_service.generate_reach_token(
                 uid=new_user.uid,
