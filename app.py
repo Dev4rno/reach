@@ -57,6 +57,7 @@ ALGORITHM = env.jwt["algorithm"]
 CLIENT_LOCAL = env.state["client_local"]
 CLIENT_PROD = env.state["client_prod"]
 ALLOW_HEADERS = env.auth["allow_headers"]
+ALLOW_ORIGINS = env.auth["allow_origins"]
 TEMPLATE_BASE = CLIENT_PROD if NODE_ENV == "production" else CLIENT_LOCAL
 
 @lru_cache
@@ -80,12 +81,11 @@ async def lifespan(app: FastAPI):
     yield
     await mongo_client.close()
 
-
 app = FastAPI(title="Credentials Storage API", lifespan=lifespan)
 
-origins = [CLIENT_LOCAL]
+origins = [TEMPLATE_BASE]
 
-for prod_url in CLIENT_PROD:
+for prod_url in ALLOW_ORIGINS:
     origins.append(prod_url)
 
 app.add_middleware(

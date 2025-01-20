@@ -14,7 +14,7 @@ class EnvHandler:
             "base_url": self.get("BASE_URL"),
             "sender": self.get("SENDER_EMAIL"),
             "client_local": self.get("CLIENT_URL_LOCAL"),
-            "client_prod": parse_env_var_to_list(self.get("CLIENT_URL_PROD")),
+            "client_prod": self.get("CLIENT_URL_PROD"),
         }
         self.mongo = {
             "uri": self.get("MONGO_URI"),
@@ -29,7 +29,8 @@ class EnvHandler:
             "secret": self.get("JWT_SECRET_KEY"),
         }
         self.auth = {
-            "allow_headers": parse_env_var_to_list(self.get("ALLOW_HEADERS"))
+            "allow_headers": parse_env_var_to_list(self.get("ALLOW_HEADERS")),
+            "allow_origins": parse_env_var_to_list(self.get("ALLOW_ORIGINS")),
         }
 
     def get(self, key: str, default: t.Union[t.Any, None] = None, cast: t.Union[type, None] = None) -> any:
