@@ -49,6 +49,8 @@ from core.repositories.user_repository import UserRepository
 from core.handlers.env_handler import env
 from slowapi.middleware import SlowAPIMiddleware
 from functools import lru_cache
+from api_analytics.fastapi import Analytics
+
 
 NODE_ENV = env.state["node_env"]
 BASE_URL = env.state["base_url"]
@@ -59,6 +61,7 @@ CLIENT_PROD = env.state["client_prod"]
 ALLOW_HEADERS = env.auth["allow_headers"]
 ALLOW_ORIGINS = env.auth["allow_origins"]
 TEMPLATE_BASE = CLIENT_PROD if NODE_ENV == "production" else CLIENT_LOCAL
+ANALYTICS_KEY = env.state["analytics_key"]
 
 @lru_cache
 def get_token_service() -> TokenService:
@@ -109,6 +112,10 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # https://fastapi.tiangolo.com/advanced/templates/
 templates = Jinja2Templates(directory="templates")
+
+# Analytics
+# https://pypi.org/project/fastapi-analytics/
+app.add_middleware(Analytics, api_key=ANALYTICS_KEY)
 
 @app.get("/")
 @limiter.limit("3/minute")
