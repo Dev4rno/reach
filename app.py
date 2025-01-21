@@ -111,8 +111,11 @@ async def lifespan(app: FastAPI):
     yield
     await mongo_client.close()
 
+
+
 limiter = Limiter(
-    key_func=get_remote_address,
+    # key_func=get_remote_address,
+    key_func=get_client_ip,
     storage_uri=REDIS_URL
 )
 
