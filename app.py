@@ -71,16 +71,9 @@ RATE_LIMITED = env.state["rate_limited"] == "True"
 def get_client_ip(request: Request):
     real_ip = request.headers.get("x-real-ip")
     forwarded_for = request.headers.get("x-forwarded-for")
-    client_ip = request.client.host
+    client_ip = get_remote_address(request)
     
     print(f"DEBUG IP INFO:\nX-Real-IP: {real_ip}\nX-Forwarded-For: {forwarded_for}\nClient Host: {client_ip}")
-    
-    # print(f"""
-    # DEBUG IP INFO:
-    # X-Real-IP: {real_ip}
-    # X-Forwarded-For: {forwarded_for}
-    # Client Host: {client_ip}
-    # """)
     
     if forwarded_for:
         return forwarded_for.split(",")[0]
@@ -117,10 +110,10 @@ async def lifespan(app: FastAPI):
     await mongo_client.close()
 
 limiter = Limiter(
-    key_func=get_client_ip,#get_remote_address,
+    key_func=get_client_ip,
     # key_func=get_client_ip,
-    storage_uri=REDIS_URL,
-    strategy="fixed-window",
+    # storage_uri=REDIS_URL,
+    # strategy="fixed-window",
     enabled=RATE_LIMITED
 )
 
@@ -154,12 +147,9 @@ app.add_middleware(Analytics, api_key=ANALYTICS_KEY)
 @app.get("/")
 @limiter.limit("3/minute", per_method=True)
 async def root_endpoint(request: Request):
-    ip = get_client_ip(request)
-    print(f"Rate limiting using IP: {ip}")
     return JSONResponse(content={
         "ping": "pong",
         "message": "Devarno Reach Server pinged successfully :)",
-        "ip_address": ip,
     })
 
 
