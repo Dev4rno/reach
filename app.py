@@ -158,24 +158,24 @@ async def root_endpoint(request: Request):
     })
 
 
-@app.get("/debug-ratelimit")
-async def debug_ratelimit(request: Request):
-    ip = get_client_ip(request)
+# @app.get("/debug-ratelimit")
+# async def debug_ratelimit(request: Request):
+#     ip = get_client_ip(request)
     
-    # Connect to Redis to check the keys
-    r = redis.Redis.from_url(REDIS_URL)
+#     # Connect to Redis to check the keys
+#     r = redis.Redis.from_url(REDIS_URL)
     
-    # Get all keys related to rate limiting
-    rate_limit_keys = r.keys("rate-limit:*")
+#     # Get all keys related to rate limiting
+#     rate_limit_keys = r.keys("rate-limit:*")
     
-    return JSONResponse({
-        "current_ip": ip,
-        "rate_limit_keys": [key.decode() for key in rate_limit_keys],
-        "headers": dict(request.headers)
-    })
+#     return JSONResponse({
+#         "current_ip": ip,
+#         "rate_limit_keys": [key.decode() for key in rate_limit_keys],
+#         "headers": dict(request.headers)
+#     })
 
 @app.post("/register")
-@limiter.limit("5/minute")
+@limiter.limit("3/minute")
 async def register_user(
     request: Request,
     user: User,
@@ -235,7 +235,7 @@ async def register_user(
 
 
 @app.put("/preferences")
-@limiter.limit("5/minute")
+@limiter.limit("3/minute")
 async def update_email_preferences(
     request: Request,
     token: str,
@@ -289,7 +289,7 @@ async def update_email_preferences(
     })
 
 @app.put("/unsubscribe")
-@limiter.limit("5/minute")
+@limiter.limit("3/minute")
 async def unsubscribe(
     request: Request,
     token: str,
