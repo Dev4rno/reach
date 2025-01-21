@@ -50,7 +50,7 @@ from core.handlers.env_handler import env
 from slowapi.middleware import SlowAPIMiddleware
 from functools import lru_cache
 from api_analytics.fastapi import Analytics
-import redis
+# import redis
 
 # Redis
 REDIS_URL = f"redis://{env.redis['username']}:{env.redis['password']}@{env.redis['host']}:{env.redis['port']}"
@@ -66,6 +66,7 @@ ALLOW_HEADERS = env.auth["allow_headers"]
 ALLOW_ORIGINS = env.auth["allow_origins"]
 TEMPLATE_BASE = CLIENT_PROD if NODE_ENV == "production" else CLIENT_LOCAL
 ANALYTICS_KEY = env.state["analytics_key"]
+RATE_LIMITED = env.state["rate_limited"] == "True"
 
 def get_client_ip(request: Request):
     real_ip = request.headers.get("x-real-ip")
@@ -111,12 +112,12 @@ async def lifespan(app: FastAPI):
     yield
     await mongo_client.close()
 
-
-
 limiter = Limiter(
-    # key_func=get_remote_address,
-    key_func=get_client_ip,
-    storage_uri=REDIS_URL
+    key_func=get_remote_address,
+    # key_func=get_client_ip,
+    storage_uri=REDIS_URL,
+    strategy="fixed-window",
+    enabled=RATE_LIMITED
 )
 
 app = FastAPI(title="Credentials Storage API", lifespan=lifespan)
@@ -147,7 +148,7 @@ templates = Jinja2Templates(directory="templates")
 app.add_middleware(Analytics, api_key=ANALYTICS_KEY)
 
 @app.get("/")
-@limiter.limit("3/minute")
+@limiter.limit("3/minute", per_method=True)
 async def root_endpoint(request: Request):
     ip = get_client_ip(request)
     print(f"Rate limiting using IP: {ip}")

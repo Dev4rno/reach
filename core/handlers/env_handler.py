@@ -16,6 +16,7 @@ class EnvHandler:
             "client_local": self.get("CLIENT_URL_LOCAL"),
             "client_prod": self.get("CLIENT_URL_PROD"),
             "analytics_key": self.get("API_ANALYTICS_KEY"),
+            "rate_limited": self.get("RATE_LIMITED"),
         }
         self.mongo = {
             "uri": self.get("MONGO_URI"),
