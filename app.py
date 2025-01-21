@@ -73,12 +73,12 @@ def get_client_ip(request: Request):
     forwarded_for = request.headers.get("x-forwarded-for")
     client_ip = request.client.host
     
-    print(f"""
-    DEBUG IP INFO:
-    X-Real-IP: {real_ip}
-    X-Forwarded-For: {forwarded_for}
-    Client Host: {client_ip}
-    """)
+    # print(f"""
+    # DEBUG IP INFO:
+    # X-Real-IP: {real_ip}
+    # X-Forwarded-For: {forwarded_for}
+    # Client Host: {client_ip}
+    # """)
     
     if forwarded_for:
         return forwarded_for.split(",")[0]
@@ -113,7 +113,7 @@ async def lifespan(app: FastAPI):
     await mongo_client.close()
 
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=get_client_ip,#get_remote_address,
     # key_func=get_client_ip,
     storage_uri=REDIS_URL,
     strategy="fixed-window",
