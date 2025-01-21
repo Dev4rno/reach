@@ -50,6 +50,7 @@ from core.handlers.env_handler import env
 from slowapi.middleware import SlowAPIMiddleware
 from functools import lru_cache
 from api_analytics.fastapi import Analytics
+import redis
 
 # Redis
 REDIS_URL = f"redis://{env.redis['username']}:{env.redis['password']}@{env.redis['host']}:{env.redis['port']}"
@@ -65,6 +66,24 @@ ALLOW_HEADERS = env.auth["allow_headers"]
 ALLOW_ORIGINS = env.auth["allow_origins"]
 TEMPLATE_BASE = CLIENT_PROD if NODE_ENV == "production" else CLIENT_LOCAL
 ANALYTICS_KEY = env.state["analytics_key"]
+
+def get_client_ip(request: Request):
+    real_ip = request.headers.get("x-real-ip")
+    forwarded_for = request.headers.get("x-forwarded-for")
+    client_ip = request.client.host
+    
+    print(f"""
+    DEBUG IP INFO:
+    X-Real-IP: {real_ip}
+    X-Forwarded-For: {forwarded_for}
+    Client Host: {client_ip}
+    """)
+    
+    if forwarded_for:
+        return forwarded_for.split(",")[0]
+    if real_ip:
+        return real_ip
+    return client_ip
 
 # Allowed origins
 origins = [TEMPLATE_BASE]
@@ -127,9 +146,29 @@ app.add_middleware(Analytics, api_key=ANALYTICS_KEY)
 @app.get("/")
 @limiter.limit("3/minute")
 async def root_endpoint(request: Request):
+    ip = get_client_ip(request)
+    print(f"Rate limiting using IP: {ip}")
     return JSONResponse(content={
         "ping": "pong",
-        "message": "Devarno Reach Server pinged successfully :)"
+        "message": "Devarno Reach Server pinged successfully :)",
+        "ip_address": ip,
+    })
+
+
+@app.get("/debug-ratelimit")
+async def debug_ratelimit(request: Request):
+    ip = get_client_ip(request)
+    
+    # Connect to Redis to check the keys
+    r = redis.Redis.from_url(REDIS_URL)
+    
+    # Get all keys related to rate limiting
+    rate_limit_keys = r.keys("rate-limit:*")
+    
+    return JSONResponse({
+        "current_ip": ip,
+        "rate_limit_keys": [key.decode() for key in rate_limit_keys],
+        "headers": dict(request.headers)
     })
 
 @app.post("/register")
