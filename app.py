@@ -51,7 +51,10 @@ from slowapi.middleware import SlowAPIMiddleware
 from functools import lru_cache
 from api_analytics.fastapi import Analytics
 
+# Redis
+REDIS_URL = f"redis://{env.redis['username']}:{env.redis['password']}@{env.redis['host']}:{env.redis['port']}"
 
+# Env
 NODE_ENV = env.state["node_env"]
 BASE_URL = env.state["base_url"]
 SECRET_KEY = env.jwt["secret"]
@@ -62,6 +65,11 @@ ALLOW_HEADERS = env.auth["allow_headers"]
 ALLOW_ORIGINS = env.auth["allow_origins"]
 TEMPLATE_BASE = CLIENT_PROD if NODE_ENV == "production" else CLIENT_LOCAL
 ANALYTICS_KEY = env.state["analytics_key"]
+
+# Allowed origins
+origins = [TEMPLATE_BASE]
+for prod_url in ALLOW_ORIGINS:
+    origins.append(prod_url)
 
 @lru_cache
 def get_token_service() -> TokenService:
@@ -84,18 +92,18 @@ async def lifespan(app: FastAPI):
     yield
     await mongo_client.close()
 
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=REDIS_URL
+)
+
 app = FastAPI(title="Credentials Storage API", lifespan=lifespan)
 
 # Rate limiting configuration
-limiter = Limiter(key_func=get_remote_address)
+# limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
-
-origins = [TEMPLATE_BASE]
-
-for prod_url in ALLOW_ORIGINS:
-    origins.append(prod_url)
 
 app.add_middleware(
     CORSMiddleware,
@@ -104,7 +112,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "PUT", "POST", "OPTIONS"],
 )
-
 
 # Static files
 # https://fastapi.tiangolo.com/tutorial/static-files/

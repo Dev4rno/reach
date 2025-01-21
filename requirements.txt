@@ -9,3 +9,4 @@ slowapi
 mailjet_rest
 PyJWT
 api-analytics[fastapi]
+redis

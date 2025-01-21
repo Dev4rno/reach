@@ -33,6 +33,13 @@ class EnvHandler:
             "allow_headers": parse_env_var_to_list(self.get("ALLOW_HEADERS")),
             "allow_origins": parse_env_var_to_list(self.get("ALLOW_ORIGINS")),
         }
+        self.redis = {
+            "host": os.getenv("REDIS_HOST"),
+            "port": os.getenv("REDIS_PORT"),
+            "username": os.getenv("REDIS_USERNAME"),
+            "password": os.getenv("REDIS_PASSWORD")
+        }
+        
 
     def get(self, key: str, default: t.Union[t.Any, None] = None, cast: t.Union[type, None] = None) -> any:
         """
