@@ -73,7 +73,7 @@ def get_client_ip(request: Request):
     forwarded_for = request.headers.get("x-forwarded-for")
     client_ip = get_remote_address(request)
     
-    print(f"DEBUG IP INFO:\nX-Real-IP: {real_ip}\nX-Forwarded-For: {forwarded_for}\nClient Host: {client_ip}")
+    # print(f"DEBUG IP INFO:\nX-Real-IP: {real_ip}\nX-Forwarded-For: {forwarded_for}\nClient Host: {client_ip}")
     
     if forwarded_for:
         return forwarded_for.split(",")[0]
@@ -86,7 +86,7 @@ origins = [TEMPLATE_BASE]
 for prod_url in ALLOW_ORIGINS:
     origins.append(prod_url)
     
-print("ALLOWED ORIGINS: ", origins)
+# print("ALLOWED ORIGINS: ", origins)
 
 @lru_cache
 def get_token_service() -> TokenService:
